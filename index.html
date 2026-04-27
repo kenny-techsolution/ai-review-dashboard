@@ -454,8 +454,8 @@ input { font: inherit; }
 
       <!-- ============ FILTER BAR ============ -->
       <div class="filter-bar">
-        <div class="filter-chip active">
-          <span class="label">Repo</span><span class="value">spoton-lite</span><span class="remove">×</span>
+        <div class="filter-chip active" id="repo-chip">
+          <span class="label">Repo</span><span class="value" id="repo-chip-value">all</span><span class="remove">×</span>
         </div>
         <div class="filter-chip"><span class="label">+</span><span class="value">Team</span></div>
         <div class="filter-chip"><span class="label">+</span><span class="value">Author</span></div>
@@ -613,8 +613,52 @@ async function loadEvents() {
   );
 }
 
+// Tier-default review baselines — used to enrich live/backtest events that
+// don't carry the dashboard's full schema (live reviewer events lack
+// `baseline_review_time_min`, `human_time_min`, `adds`/`dels`, etc.).
+// These are the same defaults used by the synthetic fallback dataset below.
+const TIER_DEFAULTS = {
+  T0: { baseline: 8,    human: 0,  decision: 'APPROVE' },
+  T1: { baseline: 25,   human: 3,  decision: 'APPROVE' },
+  T2: { baseline: 75,   human: 16, decision: 'COMMENT' },
+  T3: { baseline: 360,  human: 55, decision: 'REQUEST_CHANGES' },
+  T4: { baseline: 2880, human: 45, decision: 'REQUEST_CHANGES' },
+};
+
+// Adapt a raw event from the live POST stream to the dashboard's full shape.
+// Returns null for events that don't belong in the KPI/feed corpus
+// (e.g. {type:'merged'} markers — those render as a separate feed row).
+function enrichEvent(e) {
+  if (!e || typeof e !== 'object') return null;
+  if (e.type === 'merged') return null;
+  if (!e.author || !e.ai_tier) return null;
+  const tier = e.ai_tier;
+  const base = TIER_DEFAULTS[tier] || TIER_DEFAULTS.T2;
+  const adds = e.adds ?? Math.max(5, 20 + ((e.pr_id ?? 0) % 50));
+  const dels = e.dels ?? Math.max(1, Math.floor(adds * 0.3));
+  const baselineMin = e.baseline_review_time_min ?? base.baseline;
+  const humanMin = e.human_time_min ?? (e.ai_decision === 'APPROVE' ? 0 : base.human);
+  const reviewedAt = e.ai_reviewed_at ?? new Date().toISOString();
+  const mergedAt = e.merged_at ?? (
+    (e.ai_decision === 'REQUEST_CHANGES') ? null : reviewedAt
+  );
+  return {
+    ...e,
+    files_changed: Array.isArray(e.files_changed) ? e.files_changed : [],
+    truth_tier: e.truth_tier ?? tier,
+    human_decision: e.human_decision ?? (humanMin > 0 ? e.ai_decision : null),
+    human_overturned: e.human_overturned ?? false,
+    is_bugfix: e.is_bugfix ?? false,
+    baseline_review_time_min: baselineMin,
+    human_time_min: humanMin,
+    merged_at: mergedAt,
+    adds, dels,
+  };
+}
+
 const __loaded = await loadEvents();
-EVENTS = __loaded.events;
+const RAW_EVENTS = __loaded.events || [];
+EVENTS = RAW_EVENTS.map(enrichEvent).filter(Boolean);
 DATASET_LABEL = __loaded.label;
 
 if (!EVENTS || EVENTS.length === 0) {
@@ -691,6 +735,17 @@ if (!EVENTS || EVENTS.length === 0) {
   });
   })();
 }  // end of fetch-fallback block
+
+// Populate the repo filter chip from the actual data we just loaded.
+// (The chip is presentational here; real filter wiring would route through compute().)
+(() => {
+  const repos = [...new Set(EVENTS.map(e => e.repo).filter(Boolean))];
+  const el = document.getElementById('repo-chip-value');
+  if (!el) return;
+  if (repos.length === 0)      el.textContent = 'demo dataset';
+  else if (repos.length === 1) el.textContent = repos[0];
+  else                         el.textContent = `${repos.length} repos`;
+})();
 
 // HELPERS
 const tierOrder = ['T0','T1','T2','T3','T4'];
@@ -951,7 +1006,14 @@ function feedItem(e, isNew = false) {
     <div class="feed-time">${ago}<span class="feed-action" style="margin-left:6px;">↗</span></div>
   </div>`;
 }
-document.getElementById('feed-list').innerHTML = [...EVENTS].reverse().map(e => feedItem(e)).join('');
+// Initial feed render: branch on event shape so merge markers (no `author`)
+// don't blow up feedItem(). RAW_EVENTS preserves the full raw stream including
+// `{type:"merged"}` rows that we want shown but couldn't be enriched.
+document.getElementById('feed-list').innerHTML = [...RAW_EVENTS].reverse().map(e => {
+  if (e && e.type === 'merged') return mergedFeedItem(e);
+  if (e && e.author && e.ai_tier && Array.isArray(e.files_changed)) return feedItem(e);
+  return ''; // skip anything else
+}).join('');
 
 // Live feed — real events via Server-Sent Events.
 // The Worker's /stream endpoint holds a Durable-Object-backed SSE connection;
