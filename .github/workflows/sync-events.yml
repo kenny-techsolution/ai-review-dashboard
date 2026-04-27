@@ -1,0 +1,51 @@
+name: Sync events from pos-lite
+
+# Three triggers — the cron is the backstop, workflow_dispatch is for manual
+# refresh from the Actions UI, and repository_dispatch is the fast-path webhook
+# fired from kenny-techsolution/pos-lite's reviewer workflow when a PR review
+# completes (see optional setup in pos-lite/.github/workflows/ai-review.yml).
+on:
+  schedule:
+    - cron: '*/15 * * * *'        # every 15 minutes — backstop
+  workflow_dispatch:               # manual trigger from Actions UI
+  repository_dispatch:
+    types: [pos-lite-pr-reviewed]  # webhook from pos-lite (~30s latency)
+
+permissions:
+  contents: write   # pushes the updated data/events.jsonl
+
+concurrency:
+  group: sync-events
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout dashboard
+        uses: actions/checkout@v4
+
+      - name: Sync events from pos-lite
+        env:
+          # Use a fine-grained PAT (Actions: read on pos-lite) if set;
+          # otherwise fall back to default GITHUB_TOKEN (works for the public
+          # artifacts list endpoint, may fail on .zip downloads — set the PAT
+          # to be safe).
+          GH_TOKEN: ${{ secrets.POS_LITE_TOKEN || secrets.GITHUB_TOKEN }}
+          SOURCE_REPO: kenny-techsolution/pos-lite
+        run: bash scripts/sync-events.sh
+
+      - name: Commit + push if changed
+        run: |
+          if [[ -n "$(git status --porcelain data/events.jsonl)" ]]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add data/events.jsonl
+            EVENT_COUNT=$(wc -l < data/events.jsonl | tr -d ' ')
+            git commit -m "chore: sync ${EVENT_COUNT} events from pos-lite [skip ci]"
+            git push
+            echo "Pushed ${EVENT_COUNT} events."
+          else
+            echo "No new events to sync."
+          fi
