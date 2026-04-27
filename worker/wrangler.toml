@@ -1,0 +1,20 @@
+name = "ai-review-events"
+main = "src/index.ts"
+compatibility_date = "2026-04-01"
+
+# R2 bucket binding — created with: wrangler r2 bucket create ai-review-events
+[[r2_buckets]]
+binding = "EVENTS"
+bucket_name = "ai-review-events"
+
+# Write secret — set with: wrangler secret put WRITE_TOKEN
+# (paste a long random string when prompted, e.g.:  openssl rand -hex 32)
+# DO NOT put the token here — secrets live outside the toml.
+
+# Observability — keep request logs available for debugging
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1

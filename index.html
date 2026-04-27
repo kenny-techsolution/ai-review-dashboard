@@ -577,21 +577,45 @@ input { font: inherit; }
 (async () => {
 
 // ==================================================================
-// EVENT DATA — fetch live data from data/events.jsonl
-// (Real events sync'd from kenny-techsolution/pos-lite Action artifacts)
-// Falls back to embedded sample for local file:// dev
+// EVENT DATA — try sources in order:
+//   1. Cloudflare Worker (R2-backed, sub-5s latency once deployed)
+//   2. raw.githubusercontent.com (last committed state, ~10s latency)
+//   3. ./data/events.jsonl (Pages-served, slow rebuild but always works)
+//   4. embedded sample (offline fallback for file://)
+// Set WORKER_EVENTS_URL to the deployed Cloudflare Worker URL (see worker/README.md).
 // ==================================================================
 let EVENTS;
 let DATASET_LABEL = "live";
-try {
-  const resp = await fetch('./data/events.jsonl');
-  if (resp.ok) {
+
+const WORKER_EVENTS_URL = ""; // ← set this to the deployed Worker URL e.g. "https://ai-review-events.<sub>.workers.dev/events.jsonl"
+const RAW_EVENTS_URL = "https://raw.githubusercontent.com/kenny-techsolution/ai-review-dashboard/main/data/events.jsonl";
+
+async function tryFetch(url, label) {
+  if (!url) return null;
+  try {
+    const resp = await fetch(`${url}?t=${Date.now()}`, { cache: "no-store" });
+    if (!resp.ok) return null;
     const text = await resp.text();
-    EVENTS = text.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+    const parsed = text.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+    if (parsed.length > 0) return { events: parsed, label };
+  } catch (err) {
+    console.warn(`fetch from ${url} failed:`, err);
   }
-} catch (err) {
-  console.warn('events.jsonl fetch failed (likely file:// CORS), using embedded sample:', err);
+  return null;
 }
+
+async function loadEvents() {
+  return (
+    (await tryFetch(WORKER_EVENTS_URL, "live · Cloudflare R2")) ||
+    (await tryFetch(RAW_EVENTS_URL,    "live · GitHub raw"))    ||
+    (await tryFetch("./data/events.jsonl", "live · Pages local")) ||
+    { events: null, label: "sample (offline fallback)" }
+  );
+}
+
+const __loaded = await loadEvents();
+EVENTS = __loaded.events;
+DATASET_LABEL = __loaded.label;
 
 if (!EVENTS || EVENTS.length === 0) {
   DATASET_LABEL = "sample (local fallback)";
