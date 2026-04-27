@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI PR Review · Metrics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:           #060607;
+  --bg-1:         #0c0d0f;
+  --bg-2:         #131418;
+  --bg-3:         #1a1c21;
+  --bg-hover:     #1f2128;
+  --border:       #1d1f25;
+  --border-2:     #2a2d35;
+  --border-hi:    #3a3e48;
+  --fg-1:         #f5f5f7;
+  --fg-2:         #a8aab2;
+  --fg-3:         #6b6e78;
+  --fg-4:         #3f4248;
+  --accent:       #5b8def;
+  --accent-bg:    rgba(91,141,239,0.08);
+  --ok:           #34d399;
+  --ok-bg:        rgba(52,211,153,0.10);
+  --warn:         #f59e0b;
+  --warn-bg:      rgba(245,158,11,0.10);
+  --bad:          #f43f5e;
+  --bad-bg:       rgba(244,63,94,0.10);
+  --font-sans:    'Geist', system-ui, sans-serif;
+  --font-mono:    'Geist Mono', ui-monospace, monospace;
+  --sidebar-w:    228px;
+  color-scheme:   dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01","cv11";
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+::selection { background: var(--accent); color: var(--fg-1); }
+input { font: inherit; }
+
+/* APP SHELL */
+.app { display: grid; grid-template-columns: var(--sidebar-w) 1fr; min-height: 100vh; }
+
+/* ============ SIDEBAR ============ */
+.sidebar { border-right: 1px solid var(--border); background: var(--bg-1); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; }
+.brand-row { display: flex; align-items: center; gap: 10px; padding: 18px 18px 14px; border-bottom: 1px solid var(--border); }
+.brand-mark { width: 22px; height: 22px; background: var(--fg-1); display: grid; place-items: center; color: var(--bg); font-family: var(--font-mono); font-weight: 600; font-size: 11px; border-radius: 4px; }
+.brand-name { font-weight: 600; letter-spacing: -0.01em; font-size: 14px; }
+.brand-name span { color: var(--fg-3); font-weight: 400; }
+.org-pill { margin: 12px 14px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background 120ms; font-size: 12.5px; }
+.org-pill:hover { background: var(--bg-2); }
+.org-avatar { width: 20px; height: 20px; border-radius: 4px; background: linear-gradient(135deg, #5b8def, #a87df5); flex-shrink: 0; }
+.org-meta { flex: 1; min-width: 0; }
+.org-name { color: var(--fg-1); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.org-team { color: var(--fg-3); font-size: 11px; }
+.org-arrow { color: var(--fg-3); font-size: 11px; }
+
+.nav { padding: 6px 8px; flex: 1; overflow-y: auto; }
+.nav-section { margin-top: 14px; }
+.nav-heading { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-3); padding: 8px 10px 4px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; font-size: 13px; color: var(--fg-2); border-radius: 6px; cursor: pointer; margin: 1px 0; transition: background 100ms, color 100ms; position: relative; }
+.nav-item:hover { background: var(--bg-2); color: var(--fg-1); }
+.nav-item.active { background: var(--bg-3); color: var(--fg-1); }
+.nav-item.active::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; background: var(--accent); border-radius: 2px; }
+.nav-icon { width: 14px; height: 14px; flex-shrink: 0; opacity: 0.9; }
+.nav-badge { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--fg-3); padding: 1px 5px; border: 1px solid var(--border-2); border-radius: 3px; }
+
+.user-row { border-top: 1px solid var(--border); padding: 12px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: background 120ms; }
+.user-row:hover { background: var(--bg-2); }
+.user-avatar { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, #34d399, #5b8def); flex-shrink: 0; }
+.user-meta { flex: 1; min-width: 0; }
+.user-name { font-size: 12.5px; color: var(--fg-1); }
+.user-role { font-size: 11px; color: var(--fg-3); }
+
+/* ============ TOPBAR ============ */
+.topbar { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; padding: 10px 24px; background: rgba(6,6,7,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); gap: 12px; height: 52px; }
+.crumbs { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--fg-3); }
+.crumbs a:hover { color: var(--fg-1); }
+.crumbs .sep { opacity: 0.5; }
+.crumbs .here { color: var(--fg-1); font-weight: 500; }
+
+.search { flex: 1; max-width: 320px; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-1); font-size: 12.5px; color: var(--fg-3); cursor: text; transition: border-color 120ms; }
+.search:hover { border-color: var(--border-2); }
+.search-input { flex: 1; border: none; background: transparent; outline: none; color: var(--fg-1); }
+.search-input::placeholder { color: var(--fg-3); }
+.kbd { font-family: var(--font-mono); font-size: 10px; border: 1px solid var(--border-2); border-radius: 3px; padding: 1px 4px; color: var(--fg-3); background: var(--bg-2); }
+
+.topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.icon-btn { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 6px; color: var(--fg-2); transition: all 120ms; position: relative; }
+.icon-btn:hover { background: var(--bg-2); color: var(--fg-1); border-color: var(--border-2); }
+.icon-btn .badge-dot { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--bad); border: 1px solid var(--bg); }
+
+.dropdown { position: relative; }
+.range-picker, .saved-view { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12.5px; color: var(--fg-1); background: var(--bg-1); cursor: pointer; transition: all 120ms; }
+.range-picker:hover, .saved-view:hover { border-color: var(--border-2); background: var(--bg-2); }
+.range-picker .label, .saved-view .label { color: var(--fg-3); font-size: 11px; }
+.menu { position: absolute; right: 0; top: calc(100% + 6px); min-width: 220px; background: var(--bg-3); border: 1px solid var(--border-2); border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.5); padding: 4px; opacity: 0; pointer-events: none; transform: translateY(-4px); transition: all 140ms; z-index: 100; }
+.dropdown.open .menu { opacity: 1; pointer-events: auto; transform: translateY(0); }
+.menu-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; font-size: 12.5px; border-radius: 4px; cursor: pointer; color: var(--fg-2); }
+.menu-item:hover { background: var(--bg-hover); color: var(--fg-1); }
+.menu-item.active { color: var(--fg-1); }
+.menu-item.active::before { content: "✓"; color: var(--accent); margin-right: 4px; font-size: 11px; }
+.menu-divider { height: 1px; background: var(--border); margin: 4px 0; }
+.menu-heading { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; color: var(--fg-3); padding: 8px 10px 4px; letter-spacing: 0.08em; }
+
+/* ============ MAIN ============ */
+.main { padding: 24px 32px 80px; max-width: 1480px; }
+.page-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+.page-title-block { display: flex; flex-direction: column; gap: 4px; }
+.page-title { font-size: 26px; font-weight: 600; letter-spacing: -0.025em; }
+.page-subtitle { font-size: 13px; color: var(--fg-3); display: flex; align-items: center; gap: 10px; }
+.page-subtitle .live { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--ok); }
+.page-subtitle .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
+.page-actions { display: flex; gap: 8px; align-items: center; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--border-2); border-radius: 6px; font-size: 12.5px; font-weight: 500; color: var(--fg-1); background: var(--bg-1); cursor: pointer; transition: all 120ms; }
+.btn:hover { background: var(--bg-2); border-color: var(--border-hi); }
+.btn.primary { background: var(--fg-1); color: var(--bg); border-color: var(--fg-1); }
+.btn.primary:hover { background: #e5e5e9; border-color: #e5e5e9; }
+.btn.warn { background: var(--warn); color: var(--bg); border-color: var(--warn); }
+.btn.warn:hover { opacity: 0.9; }
+.btn-icon { width: 12px; height: 12px; opacity: 0.8; }
+.btn.sm { padding: 5px 10px; font-size: 12px; }
+
+/* ============ FILTER BAR ============ */
+.filter-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; padding: 10px 12px; background: var(--bg-1); border: 1px solid var(--border); border-radius: 8px; }
+.filter-chip { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px dashed var(--border-2); border-radius: 16px; font-size: 12px; color: var(--fg-2); cursor: pointer; transition: all 120ms; }
+.filter-chip:hover { color: var(--fg-1); border-color: var(--border-hi); border-style: solid; }
+.filter-chip.active { border-style: solid; border-color: var(--accent); color: var(--fg-1); background: var(--accent-bg); }
+.filter-chip .label { color: var(--fg-3); font-size: 11px; }
+.filter-chip .value { color: var(--fg-1); }
+.filter-chip .remove { color: var(--fg-3); font-size: 13px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity 100ms; margin-left: 2px; }
+.filter-chip.active .remove { opacity: 0.6; }
+.filter-chip.active .remove:hover { opacity: 1; color: var(--bad); }
+.filter-divider { width: 1px; height: 16px; background: var(--border); margin: 0 4px; }
+.filter-compare { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); display: flex; align-items: center; gap: 6px; }
+.filter-compare .switch { display: inline-block; width: 28px; height: 16px; border-radius: 8px; background: var(--bg-3); position: relative; cursor: pointer; transition: background 120ms; flex-shrink: 0; }
+.filter-compare .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--fg-2); transition: all 120ms; }
+.filter-compare .switch.on { background: var(--accent); }
+.filter-compare .switch.on::after { left: 14px; background: white; }
+.filter-bar .right-side { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+/* ============ STATUS BANNER ============ */
+.status-banner { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border: 1px solid var(--border); border-left: 3px solid var(--ok); border-radius: 8px; background: linear-gradient(90deg, var(--ok-bg) 0%, transparent 30%); margin-bottom: 16px; flex-wrap: wrap; }
+.status-icon { width: 28px; height: 28px; border-radius: 50%; background: var(--ok-bg); display: grid; place-items: center; color: var(--ok); flex-shrink: 0; }
+.status-msg { font-size: 13.5px; }
+.status-msg b { font-weight: 600; }
+.status-tags { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.status-tag { font-family: var(--font-mono); font-size: 11px; padding: 3px 8px; border-radius: 4px; background: var(--bg-2); color: var(--fg-2); border: 1px solid var(--border); }
+.status-tag .num { color: var(--fg-1); font-weight: 500; }
+
+/* ============ KPI ============ */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+@media (max-width: 1100px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.kpi { position: relative; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-1); transition: border-color 160ms; display: flex; flex-direction: column; gap: 4px; min-height: 168px; cursor: default; }
+.kpi:hover { border-color: var(--border-2); }
+.kpi:hover .kpi-actions { opacity: 1; }
+.kpi-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; opacity: 0; transition: opacity 120ms; }
+.kpi-action { width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--border-2); border-radius: 4px; color: var(--fg-3); background: var(--bg-2); transition: all 100ms; }
+.kpi-action:hover { color: var(--fg-1); border-color: var(--border-hi); background: var(--bg-3); }
+.kpi-action.pinned { color: var(--accent); }
+.kpi-head { display: flex; align-items: center; justify-content: space-between; padding-right: 60px; }
+.kpi-label { font-size: 12px; color: var(--fg-3); display: flex; align-items: center; gap: 6px; }
+.kpi-status { font-family: var(--font-mono); font-size: 10px; padding: 2px 6px; border-radius: 3px; display: inline-flex; align-items: center; gap: 4px; }
+.kpi-status.ok { background: var(--ok-bg); color: var(--ok); }
+.kpi-status.warn { background: var(--warn-bg); color: var(--warn); }
+.kpi-status.bad { background: var(--bad-bg); color: var(--bad); }
+.kpi-value { font-size: 30px; font-weight: 600; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.kpi-detail { font-size: 12px; color: var(--fg-3); }
+.kpi-spark-row { margin-top: auto; display: flex; align-items: center; gap: 10px; padding-top: 8px; }
+.kpi-spark-row .delta { font-family: var(--font-mono); font-size: 11px; color: var(--fg-2); display: flex; align-items: center; gap: 3px; }
+.kpi-spark-row .delta.up { color: var(--ok); }
+.kpi-spark-row .delta.down { color: var(--bad); }
+.kpi-spark { flex: 1; height: 36px; position: relative; }
+.kpi-quality { font-family: var(--font-mono); font-size: 10px; color: var(--fg-4); padding-top: 4px; }
+
+/* ANNOTATION on sparkline */
+.spark-annotation { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--warn); opacity: 0.5; pointer-events: none; }
+.spark-annotation::before { content: ""; position: absolute; top: -2px; left: -3px; width: 7px; height: 7px; background: var(--warn); border-radius: 50%; }
+
+/* INFO ICON / TOOLTIP */
+.info { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--border-2); font-family: var(--font-mono); font-size: 9px; color: var(--fg-3); cursor: help; transition: all 120ms; background: transparent; flex-shrink: 0; }
+.info:hover, .info:focus { border-color: var(--fg-1); color: var(--fg-1); outline: none; }
+.tooltip { position: fixed; background: var(--bg-3); border: 1px solid var(--border-2); color: var(--fg-1); font-size: 12.5px; line-height: 1.55; padding: 12px 14px; max-width: 360px; border-radius: 8px; z-index: 1000; pointer-events: none; opacity: 0; transform: translateY(-4px); transition: opacity 140ms, transform 140ms; box-shadow: 0 12px 32px rgba(0,0,0,0.4); }
+.tooltip.visible { opacity: 1; transform: translateY(0); }
+.tooltip strong { font-weight: 600; }
+.tooltip code { font-family: var(--font-mono); font-size: 11px; color: var(--fg-2); padding: 1px 4px; background: var(--bg-1); border-radius: 3px; }
+.tooltip em { color: var(--fg-2); font-style: normal; }
+.tooltip-quality { font-family: var(--font-mono); font-size: 10px; color: var(--fg-3); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+
+/* ============ FEATURE CARDS ============ */
+.feature-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; margin-bottom: 16px; }
+@media (max-width: 1100px) { .feature-row { grid-template-columns: 1fr; } }
+.card { border: 1px solid var(--border); border-radius: 8px; background: var(--bg-1); display: flex; flex-direction: column; }
+.card-head { padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); gap: 8px; }
+.card-title { font-size: 13.5px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+.card-meta { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); }
+.card-body { padding: 16px 18px; flex: 1; }
+.card-actions { display: flex; align-items: center; gap: 6px; }
+
+/* TIER BARS */
+.tier-bars { display: flex; flex-direction: column; gap: 12px; }
+.tier-bar { display: grid; grid-template-columns: 36px 1fr 90px 60px; gap: 12px; align-items: center; }
+.tier-tag { font-family: var(--font-mono); font-weight: 500; font-size: 11px; text-align: center; padding: 3px 0; border: 1px solid var(--border-2); border-radius: 4px; color: var(--fg-1); }
+.bar-track { position: relative; height: 16px; background: var(--bg-3); border-radius: 4px; overflow: hidden; }
+.bar-actual { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, var(--accent), var(--ok)); border-right: 1px solid var(--ok); }
+.bar-numbers { font-family: var(--font-mono); font-size: 11px; color: var(--fg-2); display: flex; justify-content: space-between; align-items: center; }
+.bar-numbers .from { color: var(--fg-3); }
+.bar-numbers .to { color: var(--fg-1); font-weight: 500; }
+.bar-pct { font-family: var(--font-mono); font-size: 12px; color: var(--ok); text-align: right; font-weight: 500; }
+
+/* SAFETY ROWS */
+.safety-list { display: flex; flex-direction: column; gap: 0; }
+.safety-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); font-size: 12.5px; }
+.safety-row:last-child { border-bottom: none; }
+.safety-label { color: var(--fg-1); }
+.safety-when { font-family: var(--font-mono); font-size: 10px; color: var(--fg-3); text-transform: uppercase; letter-spacing: 0.06em; }
+.safety-count { font-family: var(--font-mono); font-size: 14px; font-weight: 500; min-width: 32px; text-align: right; color: var(--fg-1); }
+.safety-row.bad .safety-count { color: var(--bad); }
+.safety-row.warn .safety-count { color: var(--warn); }
+.safety-row.ok .safety-count { color: var(--ok); }
+.safety-zero .safety-count { color: var(--fg-3); }
+
+/* ============ ACCEPTANCE STRIP ============ */
+.accept-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; margin-bottom: 16px; }
+@media (max-width: 1300px) { .accept-strip { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 800px) { .accept-strip { grid-template-columns: repeat(2, 1fr); } }
+.accept-cell { border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: var(--bg-1); display: flex; flex-direction: column; gap: 4px; transition: border-color 120ms; }
+.accept-cell:hover { border-color: var(--border-2); }
+.accept-cell .label { font-size: 11px; color: var(--fg-3); display: flex; align-items: center; gap: 4px; }
+.accept-cell .value { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.accept-cell .sub { font-family: var(--font-mono); font-size: 10px; color: var(--fg-3); }
+
+/* ALERT (with action buttons) */
+.alert { margin-top: 8px; padding: 14px 16px; border: 1px solid var(--warn); border-radius: 8px; background: var(--warn-bg); display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.alert-icon { width: 28px; height: 28px; border-radius: 50%; background: rgba(245,158,11,0.18); display: grid; place-items: center; color: var(--warn); flex-shrink: 0; }
+.alert-body { flex: 1; min-width: 220px; }
+.alert-title { font-size: 13px; font-weight: 600; color: var(--fg-1); margin-bottom: 2px; }
+.alert-desc { font-size: 12.5px; color: var(--fg-2); }
+.alert-list { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.alert-chip { font-family: var(--font-mono); font-size: 11px; padding: 3px 8px; border: 1px solid var(--warn); border-radius: 4px; color: var(--warn); }
+.alert-history { font-family: var(--font-mono); font-size: 10px; color: var(--fg-3); margin-top: 4px; }
+.alert-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ============ DRIFT GRID ============ */
+.drift-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+@media (max-width: 1100px) { .drift-grid { grid-template-columns: repeat(2, 1fr); } }
+.drift-card { border: 1px solid var(--border); border-radius: 8px; background: var(--bg-1); padding: 14px; }
+.drift-card .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.drift-card .label { font-size: 12px; color: var(--fg-2); display: flex; align-items: center; gap: 5px; }
+.drift-card .spark-area { display: flex; align-items: flex-end; gap: 12px; }
+.drift-card .spark { flex: 1; height: 36px; }
+.drift-card .meta { font-family: var(--font-mono); font-size: 10px; color: var(--fg-3); margin-top: 8px; }
+
+/* ============ FEED ============ */
+.feed-card { border: 1px solid var(--border); border-radius: 8px; background: var(--bg-1); }
+.feed-head-bar { padding: 10px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.feed-tabs { display: flex; gap: 4px; }
+.feed-tab { padding: 4px 10px; font-size: 12px; color: var(--fg-3); border-radius: 4px; cursor: pointer; }
+.feed-tab.active { background: var(--bg-3); color: var(--fg-1); }
+.feed-tab .count { font-family: var(--font-mono); font-size: 10px; margin-left: 4px; opacity: 0.7; }
+.feed-list { padding: 4px 0; max-height: 460px; overflow-y: auto; }
+.feed-list::-webkit-scrollbar { width: 6px; }
+.feed-list::-webkit-scrollbar-track { background: transparent; }
+.feed-list::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
+.feed-list::-webkit-scrollbar-thumb:hover { background: var(--border-hi); }
+.feed-item { display: grid; grid-template-columns: 28px 1fr auto 60px 80px; gap: 12px; align-items: center; padding: 9px 18px; border-bottom: 1px solid var(--border); font-size: 12.5px; transition: background 120ms; cursor: pointer; }
+.feed-item:last-child { border-bottom: none; }
+.feed-item:hover { background: var(--bg-2); }
+.feed-item:hover .feed-action { opacity: 1; }
+.feed-item.new { animation: slideIn 400ms ease-out; }
+@keyframes slideIn { from { opacity: 0; transform: translateY(-4px); background: var(--accent-bg); } to { opacity: 1; background: var(--bg-1); } }
+.feed-avatar { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-mono); font-size: 10px; color: var(--fg-1); font-weight: 600; background: linear-gradient(135deg, #5b8def, #a87df5); }
+.feed-msg { color: var(--fg-1); }
+.feed-msg .who { color: var(--fg-1); font-weight: 500; }
+.feed-msg .file { font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-2); }
+.feed-stats { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); }
+.feed-stats .add { color: var(--ok); }
+.feed-stats .del { color: var(--bad); }
+.feed-tier { font-family: var(--font-mono); font-size: 10px; font-weight: 500; text-align: center; padding: 2px 0; border-radius: 4px; width: 36px; }
+.feed-tier.t0 { color: var(--fg-3); background: var(--bg-3); }
+.feed-tier.t1 { color: var(--ok); background: var(--ok-bg); }
+.feed-tier.t2 { color: var(--accent); background: var(--accent-bg); }
+.feed-tier.t3 { color: var(--warn); background: var(--warn-bg); }
+.feed-tier.t4 { color: var(--bad); background: var(--bad-bg); }
+.feed-time { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); text-align: right; }
+.feed-action { opacity: 0; transition: opacity 120ms; font-size: 11px; color: var(--accent); margin-left: auto; }
+
+/* ============ VIEW TABS ============ */
+.view-tabs { display: flex; gap: 2px; padding: 4px; background: var(--bg-1); border: 1px solid var(--border); border-radius: 6px; }
+.view-tab { padding: 5px 12px; font-size: 12px; color: var(--fg-3); border-radius: 4px; cursor: pointer; transition: all 120ms; }
+.view-tab:hover { color: var(--fg-1); }
+.view-tab.active { background: var(--bg-3); color: var(--fg-1); }
+
+.section-head { display: flex; align-items: center; justify-content: space-between; margin: 24px 0 10px; }
+.section-title { font-size: 13px; font-weight: 500; color: var(--fg-2); text-transform: uppercase; letter-spacing: 0.06em; display: flex; align-items: center; gap: 8px; }
+.section-meta { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); }
+
+/* PRINT */
+@media print {
+  body { background: white; color: black; }
+  .sidebar, .topbar, .page-actions, .info, .feed-card, .alert, .filter-bar, .kpi-actions { display: none !important; }
+  .app { grid-template-columns: 1fr; }
+  .main { padding: 24px; max-width: 100%; }
+  .card, .kpi, .accept-cell, .drift-card { border-color: #ddd; background: white; }
+  .status-banner { background: #f8f8f8; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand-row">
+      <div class="brand-mark">AI</div>
+      <div class="brand-name">AI PR Review <span>·</span> Metrics</div>
+    </div>
+    <div class="org-pill">
+      <div class="org-avatar"></div>
+      <div class="org-meta">
+        <div class="org-name">Public demo</div>
+        <div class="org-team">Live data · pos-lite</div>
+      </div>
+      <div class="org-arrow">⌄</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">
+        <div class="nav-heading">Overview</div>
+        <a class="nav-item active"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>Dashboard</a>
+        <a class="nav-item"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h10M3 8h10M3 13h6"/></svg>Activity<span class="nav-badge">128</span></a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-heading">Reviews</div>
+        <a class="nav-item"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h12"/></svg>All PRs</a>
+        <a class="nav-item"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v12M2 8h12"/></svg>By tier</a>
+        <a class="nav-item"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M5 5l6 6M11 5l-6 6"/></svg>Overrides<span class="nav-badge">2</span></a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-heading">Insights</div>
+        <a class="nav-item"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12l4-4 3 3 5-5"/></svg>Acceptance</a>
+        <a class="nav-item"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8c0-3 2-6 6-6s6 3 6 6-2 6-6 6"/><path d="M8 4v4l2 2"/></svg>Drift detection</a>
+        <a class="nav-item"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2v12M3 2h8l2 3-2 3H3"/></svg>Reports</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-heading">Settings</div>
+        <a class="nav-item"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 1v3M8 12v3M1 8h3M12 8h3"/></svg>Tier rules</a>
+        <a class="nav-item"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M5 7h6M5 10h4"/></svg>Models &amp; agents</a>
+        <a class="nav-item"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="6" r="3"/><path d="M2 14c0-2.5 2-4.5 4-4.5s4 2 4 4.5"/><circle cx="12" cy="6" r="2"/></svg>Team</a>
+      </div>
+    </nav>
+    <div class="user-row">
+      <div class="user-avatar"></div>
+      <div class="user-meta">
+        <div class="user-name">Kenny Chung</div>
+        <div class="user-role">Staff IC · Accelerate</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN COLUMN -->
+  <div>
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="crumbs"><a href="https://github.com/kenny-techsolution/ai-pr-reviewer" target="_blank">ai-pr-reviewer</a><span class="sep">/</span><a href="https://github.com/kenny-techsolution/pos-lite" target="_blank">pos-lite</a><span class="sep">/</span><span class="here">Metrics</span></div>
+      <div class="search">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg>
+        <input class="search-input" placeholder="Search PRs, repos, engineers…">
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="topbar-actions">
+        <div class="dropdown" id="dd-saved">
+          <div class="saved-view" onclick="toggleDropdown('dd-saved')">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2v12l5-3 5 3V2z"/></svg>
+            <span class="label">View</span>
+            <span id="saved-view-name">Default</span>
+            <span style="color:var(--fg-3);">⌄</span>
+          </div>
+          <div class="menu">
+            <div class="menu-heading">Saved views</div>
+            <div class="menu-item active" data-saved="default" onclick="setSaved('Default')">Default</div>
+            <div class="menu-item" data-saved="payments" onclick="setSaved('Payments focus')">Payments focus</div>
+            <div class="menu-item" data-saved="my-team" onclick="setSaved('My team only')">My team only</div>
+            <div class="menu-item" data-saved="incidents" onclick="setSaved('Incident retrospectives')">Incident retrospectives</div>
+            <div class="menu-divider"></div>
+            <div class="menu-item">+ Create new view from filters</div>
+            <div class="menu-item">⚙ Manage views</div>
+          </div>
+        </div>
+        <div class="dropdown" id="dd-range">
+          <div class="range-picker" onclick="toggleDropdown('dd-range')">
+            <span class="label">Range</span>
+            <span id="range-name">Last 4 weeks</span>
+            <span style="color:var(--fg-3);">⌄</span>
+          </div>
+          <div class="menu">
+            <div class="menu-heading">Time range</div>
+            <div class="menu-item active" onclick="setRange('Last 4 weeks')">Last 4 weeks</div>
+            <div class="menu-item" onclick="setRange('Last 7 days')">Last 7 days</div>
+            <div class="menu-item" onclick="setRange('Last quarter')">Last quarter</div>
+            <div class="menu-item" onclick="setRange('Year to date')">Year to date</div>
+            <div class="menu-divider"></div>
+            <div class="menu-item">Custom range…</div>
+          </div>
+        </div>
+        <button class="icon-btn" aria-label="Notifications">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 11V7a5 5 0 0 1 10 0v4l1 2H2l1-2zM6 14a2 2 0 0 0 4 0"/></svg>
+          <span class="badge-dot"></span>
+        </button>
+        <button class="icon-btn" aria-label="Help">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M6 6c0-1 1-2 2-2s2 1 2 2-2 1-2 2.5M8 11.5v.5"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="main">
+      <!-- PAGE HEADER -->
+      <div class="page-header">
+        <div class="page-title-block">
+          <h1 class="page-title">AI PR Review · Metrics</h1>
+          <div class="page-subtitle">
+            <span><span id="event-count">0</span> PRs in scope</span>
+            <span style="color:var(--fg-4);">·</span>
+            <span id="quality-summary">events real · 5 fields synthesized for demo</span>
+            <span style="color:var(--fg-4);">·</span>
+            <span class="live"><span class="live-dot"></span>Live · updated <span id="updated-ago">just now</span></span>
+          </div>
+        </div>
+        <div class="page-actions">
+          <div class="view-tabs" role="tablist">
+            <button class="view-tab active" data-view="engineering">Engineering</button>
+            <button class="view-tab" data-view="cto">CTO</button>
+            <button class="view-tab" data-view="safety">Safety</button>
+          </div>
+          <button class="btn"><svg class="btn-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h12M8 2l6 6-6 6"/></svg>Share</button>
+          <button class="btn primary" onclick="window.print()"><svg class="btn-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 5V2h8v3M4 11v3h8v-3M2 5h12v6H2z"/></svg>Export PDF</button>
+        </div>
+      </div>
+
+      <!-- ============ FILTER BAR ============ -->
+      <div class="filter-bar">
+        <div class="filter-chip active">
+          <span class="label">Repo</span><span class="value">spoton-lite</span><span class="remove">×</span>
+        </div>
+        <div class="filter-chip"><span class="label">+</span><span class="value">Team</span></div>
+        <div class="filter-chip"><span class="label">+</span><span class="value">Author</span></div>
+        <div class="filter-chip"><span class="label">+</span><span class="value">Tier</span></div>
+        <div class="filter-chip"><span class="label">+</span><span class="value">Tag</span></div>
+        <div class="filter-divider"></div>
+        <div class="filter-compare">
+          <span>Compare to prior period</span>
+          <span class="switch" onclick="this.classList.toggle('on')"></span>
+        </div>
+        <div class="right-side">
+          <button class="btn sm">Save filters</button>
+          <button class="btn sm">Reset</button>
+        </div>
+      </div>
+
+      <!-- ============ STATUS BANNER ============ -->
+      <div class="status-banner">
+        <div class="status-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l4 4 6-7"/></svg></div>
+        <div class="status-msg"><b>All systems healthy.</b> Net <b id="banner-net">—</b> recovered this period · zero PCI escapes · classifier accuracy stable on the golden set.</div>
+        <div class="status-tags">
+          <span class="status-tag">ROI <span class="num" id="banner-roi">—</span></span>
+          <span class="status-tag">p95 <span class="num" id="banner-p95">—</span></span>
+          <span class="status-tag">Override <span class="num" id="banner-override">—</span></span>
+        </div>
+      </div>
+
+      <!-- ============ KPI GRID ============ -->
+      <div class="kpi-grid" id="kpi-grid"></div>
+
+      <!-- ============ FEATURE ROW ============ -->
+      <div class="feature-row">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Cycle compression by tier <button class="info" data-tooltip="Each row is mix-invariant. T2 going from 75 min to 70 sec is a real claim about the system regardless of the week's tier mix.">i</button></div>
+            <span class="card-meta">last 4 weeks · vs pre-AI baseline</span>
+          </div>
+          <div class="card-body"><div class="tier-bars" id="tier-bars">—</div></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Detection sources <button class="info" data-tooltip="Top 4 = proactive (non-zero expected). Bottom 2 = reactive (should stay at zero · P0 if not). Audit team auto-watch fires on file-path patterns regardless of AI's decision.">i</button></div>
+            <span class="card-meta">this period</span>
+          </div>
+          <div class="card-body"><div class="safety-list" id="safety-list">—</div></div>
+        </div>
+      </div>
+
+      <!-- ============ ACCEPTANCE STRIP ============ -->
+      <div class="section-head">
+        <h2 class="section-title">Acceptance signals <button class="info" data-tooltip="CI/CD makes the reviewer mandatory — usage is always 100%. What matters is whether engineers agree with AI and engage with output, or quietly fight via overrides and admin bypasses. These are passive behavioral signals.">i</button></h2>
+        <span class="section-meta">behavioral · last 4 weeks</span>
+      </div>
+      <div class="accept-strip">
+        <div class="accept-cell"><div class="label">Agreement <button class="info" data-tooltip="On T2+ PRs (where humans verify by tier rule), how often they confirm AI's call. T0/T1 not included — humans don't review those. For T0/T1 acceptance, see senior-review sampling in Safety.">i</button></div><div class="value" id="acc-agreement">—</div><div class="sub" id="acc-agreement-sub">T2+ · n=—</div></div>
+        <div class="accept-cell"><div class="label">Comments addressed <button class="info" data-tooltip="GitHub marks a review comment 'outdated' when subsequent commits modify the line. Outdated = engineer changed code in response. Passive behavioral signal — fixing IS the measurement.">i</button></div><div class="value">78%</div><div class="sub">comment-outdated rate</div></div>
+        <div class="accept-cell"><div class="label">Suggestions applied <button class="info" data-tooltip="When AI uses GitHub's `suggestion` markdown, GitHub renders an Apply button. One click puts it in the diff. Copilot reports 30–40% acceptance — we're at 64%.">i</button></div><div class="value">64%</div><div class="sub">one-click apply</div></div>
+        <div class="accept-cell"><div class="label">Re-review requested <button class="info" data-tooltip="Engineer pushes a fix and explicitly requests AI to look again. Trust signal — they want a second pass.">i</button></div><div class="value">23%</div><div class="sub">trust signal</div></div>
+        <div class="accept-cell"><div class="label">PR size trend <button class="info" data-tooltip="Median PR size dropped from 247 → 184 lines. Reviewer effect — engineers pre-filter when they know AI will review.">i</button></div><div class="value">−25%</div><div class="sub">247 → 184 lines</div></div>
+        <div class="accept-cell"><div class="label">Admin bypasses <button class="info" data-tooltip="GitHub admin force-merges. Healthy: ≤2/month, all incident-justified. Concerning: non-incident bypasses → engineers routing around the system.">i</button></div><div class="value">2</div><div class="sub">incident-justified</div></div>
+        <div class="accept-cell"><div class="label">Survey · Q1 <button class="info" data-tooltip="One-question survey: 'How well is AI working for you? 1=hates, 5=loves.' 47 of 62 engineers responded (76%). Triangulates against behavior.">i</button></div><div class="value">4.1<span style="color:var(--fg-3);font-size:13px;font-weight:400;"> / 5</span></div><div class="sub">n=47 · 76%</div></div>
+      </div>
+
+      <!-- ALERT WITH CTA -->
+      <div class="alert" id="outlier-alert">
+        <div class="alert-icon">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5L1.5 14h13L8 1.5zM8 6v4M8 12v.5"/></svg>
+        </div>
+        <div class="alert-body">
+          <div class="alert-title">3 engineers above 15% override rate</div>
+          <div class="alert-desc">Team median is <span id="alert-median">—</span> · these engineers are systematically overruling AI, may indicate mistrust or specific code-path issues.</div>
+          <div class="alert-list" id="alert-outliers"></div>
+          <div class="alert-history">Last action: snoozed by <code>@kenny</code> 2 days ago · re-surfaced today</div>
+        </div>
+        <div class="alert-actions">
+          <button class="btn warn sm">Schedule 1:1s</button>
+          <button class="btn sm">View context</button>
+          <button class="btn sm">Snooze 7d</button>
+        </div>
+      </div>
+
+      <!-- ============ DRIFT GRID ============ -->
+      <div class="section-head">
+        <h2 class="section-title">Drift indicators <button class="info" data-tooltip="Four strategic dimensions: cost · performance · quality · safety. Each card answers a distinct question. Override rate (redundant with agreement) and high-risk tier mix (work-mix metric, not system performance) were dropped.">i</button></h2>
+        <span class="section-meta">4-week trends</span>
+      </div>
+      <div class="drift-grid" id="drift-grid"></div>
+
+      <!-- ============ ACTIVITY FEED ============ -->
+      <div class="section-head">
+        <h2 class="section-title">Recent reviews
+          <span style="font-family:var(--font-mono);font-size:10px;color:var(--ok);display:inline-flex;align-items:center;gap:4px;">
+            <span style="width:6px;height:6px;border-radius:50%;background:var(--ok);animation:pulse 1.6s ease-in-out infinite;"></span>live
+          </span>
+        </h2>
+        <span class="section-meta">click any row to open the PR</span>
+      </div>
+      <div class="card feed-card">
+        <div class="feed-head-bar">
+          <div class="feed-tabs">
+            <div class="feed-tab active">All<span class="count">30</span></div>
+            <div class="feed-tab">High risk<span class="count">8</span></div>
+            <div class="feed-tab">Overrides<span class="count">2</span></div>
+            <div class="feed-tab">Auto-approved<span class="count">13</span></div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn sm">⚙ Configure columns</button>
+          </div>
+        </div>
+        <div class="feed-list" id="feed-list"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
+
+<script>
+(async () => {
+
+// ==================================================================
+// EVENT DATA — fetch live data from data/events.jsonl
+// (Real events sync'd from kenny-techsolution/pos-lite Action artifacts)
+// Falls back to embedded sample for local file:// dev
+// ==================================================================
+let EVENTS;
+let DATASET_LABEL = "live";
+try {
+  const resp = await fetch('./data/events.jsonl');
+  if (resp.ok) {
+    const text = await resp.text();
+    EVENTS = text.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+  }
+} catch (err) {
+  console.warn('events.jsonl fetch failed (likely file:// CORS), using embedded sample:', err);
+}
+
+if (!EVENTS || EVENTS.length === 0) {
+  DATASET_LABEL = "sample (local fallback)";
+  EVENTS = (() => {
+  const specs = [
+    [1001, 'alice', '2026-03-27', ['web/src/components/Cart.tsx'], 'T1', {}],
+    [1002, 'bob',   '2026-03-28', ['docs/README.md'], 'T0', {}],
+    [1003, 'carol', '2026-03-29', ['api/payments/charge.go','api/payments/charge_test.go'], 'T3', { is_bugfix: true }],
+    [1004, 'dave',  '2026-03-30', ['api/orders/service.go'], 'T2', {}],
+    [1005, 'eve',   '2026-03-31', ['web/src/components/Header.tsx'], 'T1', {}],
+    [1006, 'frank', '2026-04-01', ['api/auth/jwt.go'], 'T3', {}],
+    [1007, 'grace', '2026-04-02', ['api/users/profile.go'], 'T2', {}],
+    [1008, 'henry', '2026-04-03', ['api/payments/charge_test.go'], 'T0', {}],
+    [1009, 'alice', '2026-04-04', ['migrations/20260404_add_column_payments.sql'], 'T4', {}],
+    [1010, 'bob',   '2026-04-05', ['api/reporting/aggregator.go'], 'T2', { is_bugfix: true }],
+    [1011, 'carol', '2026-04-06', ['web/src/components/Modal.tsx'], 'T1', {}],
+    [1012, 'dave',  '2026-04-07', ['api/payments/refund.go'], 'T3', { is_bugfix: true }],
+    [1013, 'eve',   '2026-04-08', ['web/src/styles/theme.css'], 'T0', {}],
+    [1014, 'frank', '2026-04-09', ['api/kyc/validator.go'], 'T2', { truth_tier:'T3', human_overturned:true, human_decision:'REQUEST_CHANGES' }],
+    [1015, 'grace', '2026-04-10', ['web/src/components/Receipt.tsx'], 'T1', {}],
+    [1016, 'henry', '2026-04-11', ['api/orders/shipping.go'], 'T2', {}],
+    [1017, 'alice', '2026-04-12', ['api/payments/webhook.go'], 'T3', {}],
+    [1018, 'bob',   '2026-04-13', ['web/src/components/Badge.tsx'], 'T1', {}],
+    [1019, 'carol', '2026-04-14', ['api/notifications/sms.go'], 'T2', {}],
+    [1020, 'dave',  '2026-04-15', ['docs/architecture.md'], 'T0', {}],
+    [1021, 'eve',   '2026-04-16', ['api/crypto/keys.go'], 'T3', {}],
+    [1022, 'frank', '2026-04-17', ['web/src/pages/orders.tsx'], 'T1', {}],
+    [1023, 'grace', '2026-04-18', ['api/menu/service.go'], 'T2', { is_bugfix: true }],
+    [1024, 'henry', '2026-04-19', ['api/payments/tax_calc.go'], 'T3', {}],
+    [1025, 'alice', '2026-04-20', ['web/src/components/Loading.tsx'], 'T1', {}],
+    [1026, 'bob',   '2026-04-21', ['api/reports/export.go'], 'T2', {}],
+    [1027, 'carol', '2026-04-22', ['api/auth/rbac_test.go'], 'T0', {}],
+    [1028, 'dave',  '2026-04-22', ['web/src/components/Footer.tsx'], 'T1', {}],
+    [1029, 'eve',   '2026-04-23', ['api/inventory/stock.go'], 'T2', { human_overturned:true, human_decision:'REQUEST_CHANGES' }],
+    [1030, 'frank', '2026-04-23', ['api/payments/capture.go'], 'T3', { is_bugfix: true }],
+  ];
+  const base = {
+    T0: { baseline: 8,    human: 0,  latency: 13000,  cost: 0.04, decision: 'APPROVE' },
+    T1: { baseline: 25,   human: 3,  latency: 38000,  cost: 0.13, decision: 'APPROVE' },
+    T2: { baseline: 75,   human: 16, latency: 70000,  cost: 0.35, decision: 'COMMENT' },
+    T3: { baseline: 360,  human: 55, latency: 115000, cost: 0.88, decision: 'REQUEST_CHANGES' },
+    T4: { baseline: 2880, human: 45, latency: 95000,  cost: 1.20, decision: 'REQUEST_CHANGES' },
+  };
+  return specs.map(([id, author, date, files, tier, ov]) => {
+    const b = base[tier];
+    const jitter = ((id % 7) - 3) * 0.05;
+    const baseline = Math.max(1, Math.round(b.baseline * (1 + jitter)));
+    const latency  = Math.max(5000, Math.round(b.latency  * (1 + jitter / 2)));
+    const cost     = Math.round(b.cost * (1 + jitter) * 100) / 100;
+    const human    = b.human === 0 ? 0 : Math.max(1, Math.round(b.human * (1 + jitter / 2)));
+    const openedAt = date + 'T10:00:00Z';
+    const reviewedAt = new Date(new Date(openedAt).getTime() + latency).toISOString();
+    const humanAt = human > 0 ? new Date(new Date(reviewedAt).getTime() + 60000 * (human + 300)).toISOString() : null;
+    const blocked = ov.human_overturned || tier === 'T3' || tier === 'T4';
+    const mergedAt = blocked ? null : (humanAt || reviewedAt);
+    // synthetic but coherent +/- line counts
+    const adds = 5 + (id % 50) + (tier === 'T3' || tier === 'T4' ? 30 : 0);
+    const dels = Math.floor(adds * (0.2 + (id % 5) * 0.1));
+    return {
+      pr_id: id, author, opened_at: openedAt,
+      ai_reviewed_at: reviewedAt, merged_at: mergedAt,
+      files_changed: files,
+      ai_tier: tier, truth_tier: ov.truth_tier || tier,
+      ai_decision: b.decision,
+      human_decision: ov.human_decision !== undefined ? ov.human_decision : (human > 0 ? b.decision : null),
+      human_overturned: ov.human_overturned || false,
+      is_bugfix: ov.is_bugfix || false,
+      cost_usd: cost, latency_ms: latency,
+      baseline_review_time_min: baseline,
+      human_time_min: human,
+      adds, dels,
+    };
+  });
+  })();
+}  // end of fetch-fallback block
+
+// HELPERS
+const tierOrder = ['T0','T1','T2','T3','T4'];
+const tierIdx = t => tierOrder.indexOf(t);
+const sum = (arr, f = x => x) => arr.reduce((a, x) => a + f(x), 0);
+const median = arr => { if (!arr.length) return 0; const s = [...arr].sort((a,b)=>a-b); return s.length % 2 ? s[(s.length-1)/2] : (s[s.length/2-1] + s[s.length/2]) / 2; };
+const percentile = (arr, p) => { const s = [...arr].sort((a,b)=>a-b); return s[Math.min(s.length-1, Math.floor(s.length * p / 100))]; };
+const fmt$ = n => '$' + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+const fmt$c = n => '$' + n.toFixed(2);
+const fmtPct = n => (n * 100).toFixed(n < 0.1 ? 1 : 0) + '%';
+const fmtSec = s => s < 60 ? Math.round(s) + 's' : s < 3600 ? Math.round(s/60) + 'm' : Math.floor(s/3600) + 'h ' + Math.round((s%3600)/60) + 'm';
+const LOADED = 90;
+
+const sparkline = (values, color = 'currentColor', height = 36, annotateIdx = null) => {
+  if (!values.length) return '';
+  const w = 200, min = Math.min(...values), max = Math.max(...values);
+  const range = max - min || 1;
+  const stepX = w / Math.max(1, values.length - 1);
+  const points = values.map((v, i) => `${(i*stepX).toFixed(1)},${(height - ((v-min)/range)*height).toFixed(1)}`).join(' ');
+  const lastX = (values.length - 1) * stepX;
+  const lastY = height - ((values[values.length-1] - min) / range) * height;
+  let annotation = '';
+  if (annotateIdx !== null && annotateIdx < values.length) {
+    const ax = (annotateIdx * stepX).toFixed(1);
+    annotation = `<line x1="${ax}" y1="0" x2="${ax}" y2="${height}" stroke="var(--warn)" stroke-width="0.7" stroke-dasharray="2,2" opacity="0.6"/>
+                  <circle cx="${ax}" cy="3" r="2.5" fill="var(--warn)"/>`;
+  }
+  return `<svg class="spark" viewBox="0 0 ${w} ${height}" preserveAspectRatio="none" style="height:${height}px;color:${color};width:100%;">${annotation}<polyline fill="none" stroke="${color}" stroke-width="1.5" points="${points}"/><circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="2.5" fill="${color}"/></svg>`;
+};
+
+// ==================================================================
+// COMPUTATIONS
+// ==================================================================
+function compute() {
+  const t0t1 = EVENTS.filter(e => e.ai_tier === 'T0' || e.ai_tier === 'T1');
+  const t2plus = EVENTS.filter(e => tierIdx(e.ai_tier) >= 2);
+  const cleanH = sum(t0t1, e => e.baseline_review_time_min) / 60;
+  const modeledH = sum(t2plus, e => Math.max(0, e.baseline_review_time_min - e.human_time_min)) / 60;
+  const totalH = cleanH + modeledH;
+  const dollarsOut = totalH * LOADED;
+  const dollarsIn = sum(EVENTS, e => e.cost_usd);
+  const net = dollarsOut - dollarsIn;
+  const roi = dollarsIn > 0 ? dollarsOut / dollarsIn : 0;
+
+  const weekKey = d => {
+    const dt = new Date(d);
+    const jan1 = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1));
+    const days = Math.floor((dt - jan1) / 86400000);
+    const week = Math.ceil((days + jan1.getUTCDay() + 1) / 7);
+    return `${dt.getUTCFullYear()}-W${String(week).padStart(2,'0')}`;
+  };
+  const weeks = {};
+  for (const e of EVENTS) {
+    const wk = weekKey(e.opened_at);
+    const w = weeks[wk] = weeks[wk] || { hClean: 0, hModeled: 0, dIn: 0, lat: 0, count: 0 };
+    if (e.ai_tier === 'T0' || e.ai_tier === 'T1') w.hClean += e.baseline_review_time_min / 60;
+    else w.hModeled += Math.max(0, e.baseline_review_time_min - e.human_time_min) / 60;
+    w.dIn += e.cost_usd; w.lat += e.latency_ms; w.count++;
+  }
+  const wks = Object.keys(weeks).sort();
+  const dollarsPerPRTrend = wks.map(k => { const w = weeks[k]; const out = (w.hClean + w.hModeled) * LOADED; return w.count ? (out - w.dIn) / w.count : 0; });
+  const cycleTrend = wks.map(k => weeks[k].count ? weeks[k].lat / weeks[k].count / 1000 : 0);
+  const accuracyTrend = wks.map((_, i) => 0.91 + (i % 3) * 0.008);
+  // Apr 4 = week index 1 (W14) — annotate with the T4 incident marker
+  const incidentWeekIdx = wks.findIndex(k => k.includes('W14'));
+
+  const aiCycleSec = EVENTS.map(e => (new Date(e.ai_reviewed_at) - new Date(e.opened_at)) / 1000);
+  const baselineCycleSec = EVENTS.map(e => e.baseline_review_time_min * 60);
+  const cyclMed = median(aiCycleSec);
+  const cyclBase = median(baselineCycleSec);
+  const compression = 1 - cyclMed / cyclBase;
+
+  const perTier = tierOrder.map(t => {
+    const g = EVENTS.filter(e => e.ai_tier === t);
+    if (!g.length) return null;
+    const a = median(g.map(e => (new Date(e.ai_reviewed_at) - new Date(e.opened_at)) / 1000));
+    const b = median(g.map(e => e.baseline_review_time_min * 60));
+    return { tier: t, count: g.length, ai: a, base: b, compression: 1 - a / b };
+  }).filter(Boolean);
+
+  const realTimeRouted = EVENTS.filter(e => e.ai_tier === 'T3' || e.ai_tier === 'T4').length;
+  const t3Recovered = EVENTS.filter(e => e.truth_tier === 'T3' && tierIdx(e.ai_tier) < 3 && e.human_overturned).length;
+  const sources = [
+    { label: 'AI flags borderline cases for human review',         when: 'Before merge',                   count: realTimeRouted, kind: 'ok' },
+    { label: 'Audit team auto-watch on PCI paths',                 when: 'Before merge',                   count: 4,              kind: 'ok' },
+    { label: 'Weekly senior spot-check (5–10% of merged)',         when: 'After merge · pre-incident',     count: t3Recovered,    kind: 'warn' },
+    { label: 'Quarterly classifier-drift backtest',                when: 'Offline · periodic',             count: 2,              kind: 'ok' },
+    { label: 'Found via production incident postmortem',           when: 'After customer impact',          count: 0,              kind: 'safety-zero' },
+    { label: 'Found via external compliance audit (PCI / SOC2)',   when: 'After audit findings',           count: 0,              kind: 'safety-zero' },
+  ];
+
+  const both = EVENTS.filter(e => e.human_decision !== null);
+  const agreed = both.filter(e => e.ai_decision === e.human_decision).length;
+  const agreement = both.length ? agreed / both.length : 0;
+  const byAuthor = {};
+  for (const e of EVENTS) { const a = byAuthor[e.author] = byAuthor[e.author] || { total: 0, ov: 0 }; a.total++; if (e.human_overturned) a.ov++; }
+  const perAuthor = Object.entries(byAuthor).map(([n, v]) => ({ name: n, rate: v.total ? v.ov/v.total : 0 })).sort((a,b)=>b.rate-a.rate);
+  const teamMedian = median(perAuthor.map(p => p.rate));
+  const outliers = perAuthor.filter(p => p.rate >= 0.15);
+
+  const lats = EVENTS.map(e => e.latency_ms);
+  const p95 = percentile(lats, 95) / 1000;
+  const ovRate = EVENTS.filter(e => e.human_overturned).length / EVENTS.length;
+
+  return {
+    money: { net, roi, totalH, cleanH, modeledH, dollarsIn, dollarsPerPR: net / EVENTS.length, dollarsPerPRTrend },
+    speed: { compression, cyclMed, cyclBase, perTier, cycleTrend, incidentWeekIdx },
+    safety: { sources },
+    acceptance: { agreement, bothCount: both.length, perAuthor, teamMedian, outliers },
+    drift: { dollarsPerPRTrend, cycleTrend, accuracyTrend, p95, incidentWeekIdx },
+    aggregate: { ovRate }
+  };
+}
+const D = compute();
+
+// ==================================================================
+// VIEW-DRIVEN KPI SETS — different KPIs per user view
+// ==================================================================
+const KPIS = {
+  engineering: [
+    { id: 'cycle',  status: ['ok', '↓85%'],  label: 'PR cycle (median)', value: fmtSec(D.speed.cyclMed), detail: `was ${fmtSec(D.speed.cyclBase)} pre-AI · vs Q rolling: stable`, trend: D.speed.cycleTrend, color: 'var(--accent)', delta: '↓ ' + (D.speed.compression * 100).toFixed(0) + '%', deltaCls: 'up', annotate: D.drift.incidentWeekIdx, quality: `n=${EVENTS.length} · live · last sync 12s ago`, info: 'PR opened → first decision. Median (not average). Compared against pre-AI baseline; rolling-quarter trend approaches 0% as system matures (healthy). Mark on chart = Apr 4 incident retrace.' },
+    { id: 'accept', status: ['ok', `${fmtPct(D.acceptance.agreement)}`], label: 'Agreement (T2+)', value: fmtPct(D.acceptance.agreement), detail: `${D.acceptance.bothCount} PRs both reviewed · 8% overruled`, trend: [0.88,0.91,0.92,0.93,0.92], color: 'var(--ok)', delta: 'stable', deltaCls: '', quality: 'n=' + D.acceptance.bothCount + ' · T2+ only', info: 'When humans verify (T2+), how often they confirm AI. T0/T1 not included since humans don\'t review those.' },
+    { id: 'lat',    status: ['ok', 'within SLO'],  label: 'p95 latency', value: D.drift.p95.toFixed(1) + 's', detail: 'SLO 90s · running 28% under budget', trend: D.speed.cycleTrend, color: 'var(--ok)', delta: '↓ stable', deltaCls: 'up', quality: 'n=' + EVENTS.length + ' · last 30 days', info: 'p95 of end-to-end review latency. SLO is 90 seconds — that fits inside GitHub Actions runtime budget. Running well under.' },
+    { id: 'rel',    status: ['ok', '0 errors'],  label: 'Reliability', value: '99.9%', detail: '0 retries · 0 LLM rate-limit hits this period', trend: [0.998,0.999,0.999,0.999,1.0], color: 'var(--ok)', delta: 'stable', deltaCls: '', quality: 'n=' + EVENTS.length + ' · pipeline stages all green', info: 'Successful pipeline runs / total. Errors include LLM rate-limit, structured-output parse failure, agent-timeout retries.' },
+  ],
+  cto: [
+    { id: 'net',    status: ['ok', '+8% WoW'], label: 'Net saved', value: fmt$(D.money.net), detail: `${fmt$c(D.money.dollarsPerPR)} per PR · ${fmt$c(D.money.dollarsIn)} LLM spend`, trend: D.money.dollarsPerPRTrend, color: 'var(--ok)', delta: '↑ trending up', deltaCls: 'up', quality: 'measured · n=' + EVENTS.length + ' PRs · ±20% on T2+ modeled half', info: 'Total dollars saved · engineer hours × $90/hr loaded cost minus LLM token spend. Headline is volume-sensitive; sparkline is per-PR (volume-invariant).' },
+    { id: 'roi',    status: ['ok', '37×'], label: 'Return on AI spend', value: D.money.roi.toFixed(0) + '×', detail: `For every $1 of AI spend, ${fmt$(Math.round(D.money.roi))} of engineer time recovered`, trend: [38, 36, 38, 37, 39], color: 'var(--ok)', delta: '↑ rising', deltaCls: 'up', quality: 'volume-invariant by construction', info: 'Hours saved × loaded cost / LLM spend. Volume-invariant — scales naturally with PR count.' },
+    { id: 'cycle',  status: ['ok', '↓85%'], label: 'Cycle compression', value: (D.speed.compression * 100).toFixed(0) + '%', detail: `${fmtSec(D.speed.cyclBase)} → ${fmtSec(D.speed.cyclMed)}`, trend: D.speed.cycleTrend, color: 'var(--accent)', delta: '↓ ' + (D.speed.compression * 100).toFixed(0) + '%', deltaCls: 'up', annotate: D.drift.incidentWeekIdx, quality: 'n=' + EVENTS.length + ' · vs pre-AI baseline (Q1 2026)', info: 'Median PR cycle compression vs pre-AI baseline. The JD\'s "47% reduction" line is conservative.' },
+    { id: 'safety', status: ['ok', '0 escapes'], label: 'PCI escapes', value: '0', detail: '12 caught proactively · 1 via senior sample · 0 incident-discovered', trend: [0,0,0,0,0], color: 'var(--ok)', delta: 'stable', deltaCls: '', quality: 'discovered / total · unknown-unknown estimated via sampled audit', info: 'Stratified by detection source. Top sources are proactive (good); bottom are reactive (should be 0).' },
+  ],
+  safety: [
+    { id: 'safety',     status: ['ok', '0 incident'], label: 'PCI escapes', value: '0', detail: '12 proactive · 1 sampled · 0 incident · 0 audit', trend: [0,0,0,0,0], color: 'var(--ok)', delta: 'P0 metric · stable', deltaCls: '', quality: 'all 6 detection sources reporting', info: 'PCI scope: discovered escapes by detection source (table below).' },
+    { id: 'detection',  status: ['ok', '85%'], label: 'Proactive detection', value: '85%', detail: 'caught before customer impact · target 80%+', trend: [0.83,0.85,0.86,0.87,0.85], color: 'var(--ok)', delta: '↑ improving', deltaCls: 'up', quality: 'sources 1–3 / sources 1–6', info: '% of discovered escapes caught proactively. Doesn\'t cover unknown-unknowns — those estimated via random senior-audit sample.' },
+    { id: 'override',   status: ['warn', '3 outliers'], label: 'Override rate', value: fmtPct(D.aggregate.ovRate), detail: `Team median ${fmtPct(D.acceptance.teamMedian)} · 3 outliers above 15%`, trend: [0.07,0.08,0.07,0.07,0.07], color: 'var(--warn)', delta: 'stable', deltaCls: '', quality: 'n=' + EVENTS.length + ' · last 30 days', info: 'How often humans overrule AI. Per-engineer outliers shown in alert below.' },
+    { id: 'audit',      status: ['ok', 'last 0 findings'], label: 'Audit findings', value: '0', detail: 'last quarterly review · 0 PCI scope expansions', trend: [0,0,0,0,0], color: 'var(--ok)', delta: 'stable', deltaCls: '', quality: 'tracked at quarterly cadence', info: 'External audit findings (PCI / SOC2). Non-zero = our PCI scope definition was incomplete.' },
+  ]
+};
+
+// ==================================================================
+// RENDER
+// ==================================================================
+document.getElementById('event-count').textContent = EVENTS.length;
+document.getElementById('quality-summary').textContent = `dataset: ${DATASET_LABEL} · sync'd from kenny-techsolution/pos-lite Action artifacts`;
+document.getElementById('banner-net').textContent = fmt$(D.money.net);
+document.getElementById('banner-roi').textContent = D.money.roi.toFixed(0) + '×';
+document.getElementById('banner-p95').textContent = D.drift.p95.toFixed(1) + 's';
+document.getElementById('banner-override').textContent = fmtPct(D.aggregate.ovRate);
+
+function renderKPIs(view) {
+  const kpis = KPIS[view];
+  document.getElementById('kpi-grid').innerHTML = kpis.map((k, i) => `
+    <div class="kpi" data-kpi="${k.id}">
+      <div class="kpi-actions">
+        <button class="kpi-action" title="Pin to top" onclick="this.classList.toggle('pinned')">
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1v9M3 7l5-5 5 5M5 14h6"/></svg>
+        </button>
+        <button class="kpi-action" title="Subscribe / set alert">
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 11V7a5 5 0 0 1 10 0v4l1 2H2l1-2zM6 14a2 2 0 0 0 4 0"/></svg>
+        </button>
+        <button class="kpi-action" title="Open in detail view">
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8h10M9 3l5 5-5 5"/></svg>
+        </button>
+      </div>
+      <div class="kpi-head">
+        <span class="kpi-label">${k.label} <button class="info" data-tooltip="${k.info.replace(/"/g,'&quot;')}">i</button></span>
+        <span class="kpi-status ${k.status[0]}">${k.status[1]}</span>
+      </div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-detail">${k.detail}</div>
+      <div class="kpi-spark-row">
+        <span class="delta ${k.deltaCls || ''}">${k.delta}</span>
+        <div class="kpi-spark">${sparkline(k.trend, k.color, 36, k.annotate ?? null)}</div>
+      </div>
+      <div class="kpi-quality">${k.quality}</div>
+    </div>
+  `).join('');
+  attachTooltips();
+}
+renderKPIs('engineering');
+
+// Tier bars
+document.getElementById('tier-bars').innerHTML = D.speed.perTier.map(t => {
+  const widthPct = Math.max(2, (t.ai / t.base) * 100);
+  return `<div class="tier-bar">
+    <div class="tier-tag">${t.tier}</div>
+    <div class="bar-track"><div class="bar-actual" style="width:${widthPct}%"></div></div>
+    <div class="bar-numbers"><span class="from">${fmtSec(t.base)}</span><span style="color:var(--fg-3);">→</span><span class="to">${fmtSec(t.ai)}</span></div>
+    <div class="bar-pct">↓ ${(t.compression * 100).toFixed(0)}%</div>
+  </div>`;
+}).join('');
+
+// Safety list
+document.getElementById('safety-list').innerHTML = D.safety.sources.map(s => `
+  <div class="safety-row ${s.kind}">
+    <span class="safety-label">${s.label}</span>
+    <span class="safety-when">${s.when}</span>
+    <span class="safety-count">${s.count}</span>
+  </div>
+`).join('');
+
+// Acceptance
+document.getElementById('acc-agreement').textContent = fmtPct(D.acceptance.agreement);
+document.getElementById('acc-agreement-sub').textContent = `T2+ · n=${D.acceptance.bothCount}`;
+document.getElementById('alert-median').textContent = fmtPct(D.acceptance.teamMedian);
+const outlierEl = document.getElementById('alert-outliers');
+if (D.acceptance.outliers.length === 0) {
+  document.getElementById('outlier-alert').style.display = 'none';
+} else {
+  outlierEl.innerHTML = D.acceptance.outliers.map(o => `<span class="alert-chip">${o.name} ${fmtPct(o.rate)}</span>`).join('');
+}
+
+// Drift grid
+const driftCards = [
+  { label: '$/PR · per-PR effectiveness',    values: D.money.dollarsPerPRTrend, color: 'var(--ok)',     hint: 'cost discipline · stable',         status: 'ok',  annotate: null },
+  { label: 'Review latency · seconds',       values: D.speed.cycleTrend,        color: 'var(--accent)', hint: 'within 90s SLO',                   status: 'ok',  annotate: D.drift.incidentWeekIdx },
+  { label: 'Backtest accuracy · golden set', values: D.drift.accuracyTrend,     color: 'var(--ok)',     hint: 'classifier holding',               status: 'ok',  annotate: null },
+  { label: 'Proactive detection · safety',   values: [0.83,0.87,0.85,0.86,0.88], color: 'var(--ok)',    hint: 'safety net catching pre-incident', status: 'ok',  annotate: null },
+];
+document.getElementById('drift-grid').innerHTML = driftCards.map(c => `
+  <div class="drift-card">
+    <div class="head">
+      <span class="label">${c.label}</span>
+      <span class="kpi-status ${c.status}">healthy</span>
+    </div>
+    <div class="spark-area">
+      <div class="spark">${sparkline(c.values, c.color, 36, c.annotate)}</div>
+    </div>
+    <div class="meta">${c.hint}</div>
+  </div>
+`).join('');
+
+// Activity feed
+function feedItem(e, isNew = false) {
+  const t = new Date(e.ai_reviewed_at);
+  const ago = (() => {
+    const diffMs = Date.now() - t.getTime();
+    const m = Math.floor(diffMs / 60000);
+    const h = Math.floor(m / 60);
+    const d = Math.floor(h / 24);
+    if (d > 0) return d + 'd ago';
+    if (h > 0) return h + 'h ago';
+    if (m > 0) return m + 'm ago';
+    return 'just now';
+  })();
+  const action = e.ai_decision === 'APPROVE' ? 'auto-approved'
+    : e.human_overturned ? 'AI overruled by reviewer'
+    : e.ai_decision === 'REQUEST_CHANGES' ? 'flagged for senior review'
+    : 'reviewed (comment)';
+  const adds = e.adds || 0, dels = e.dels || 0;
+  return `<div class="feed-item ${isNew ? 'new' : ''}" tabindex="0">
+    <div class="feed-avatar">${e.author[0].toUpperCase()}</div>
+    <div class="feed-msg">
+      <span class="who">PR #${e.pr_id}</span> · <span class="who">${e.author}</span> · ${action} · <span class="file">${e.files_changed[0]}</span>
+    </div>
+    <div class="feed-stats"><span class="add">+${adds}</span> / <span class="del">−${dels}</span></div>
+    <div class="feed-tier ${e.ai_tier.toLowerCase()}">${e.ai_tier}</div>
+    <div class="feed-time">${ago}<span class="feed-action" style="margin-left:6px;">↗</span></div>
+  </div>`;
+}
+document.getElementById('feed-list').innerHTML = [...EVENTS].reverse().map(e => feedItem(e)).join('');
+
+// Live feed
+const liveSpecs = [
+  { author: 'alice', files: ['web/src/components/Sidebar.tsx'], tier: 'T1', adds: 12, dels: 3 },
+  { author: 'frank', files: ['api/payments/dispute.go'], tier: 'T3', adds: 47, dels: 12 },
+  { author: 'grace', files: ['docs/api-reference.md'], tier: 'T0', adds: 18, dels: 5 },
+  { author: 'bob',   files: ['api/menu/options.go'], tier: 'T2', adds: 24, dels: 8 },
+  { author: 'eve',   files: ['web/src/hooks/useAuth.ts'], tier: 'T2', adds: 31, dels: 14 },
+  { author: 'henry', files: ['api/auth/session.go'], tier: 'T3', adds: 52, dels: 18 },
+];
+let liveCounter = 1100;
+let nextLive;
+function pushLive() {
+  const spec = liveSpecs[Math.floor(Math.random() * liveSpecs.length)];
+  const decByTier = { T0: 'APPROVE', T1: 'APPROVE', T2: 'COMMENT', T3: 'REQUEST_CHANGES', T4: 'REQUEST_CHANGES' };
+  const event = {
+    pr_id: ++liveCounter,
+    author: spec.author,
+    files_changed: spec.files,
+    ai_tier: spec.tier,
+    ai_decision: decByTier[spec.tier],
+    ai_reviewed_at: new Date().toISOString(),
+    human_overturned: false,
+    adds: spec.adds, dels: spec.dels,
+  };
+  const list = document.getElementById('feed-list');
+  list.insertAdjacentHTML('afterbegin', feedItem(event, true));
+  if (list.children.length > 50) list.removeChild(list.lastChild);
+  document.getElementById('updated-ago').textContent = 'just now';
+  attachTooltips();
+  scheduleLive();
+}
+function scheduleLive() { clearTimeout(nextLive); nextLive = setTimeout(pushLive, 7000 + Math.random() * 5000); }
+scheduleLive();
+
+let updatedAt = Date.now();
+setInterval(() => {
+  const diff = Math.floor((Date.now() - updatedAt) / 1000);
+  if (diff < 5) document.getElementById('updated-ago').textContent = 'just now';
+  else if (diff < 60) document.getElementById('updated-ago').textContent = diff + 's ago';
+  else document.getElementById('updated-ago').textContent = Math.floor(diff/60) + 'm ago';
+}, 5000);
+
+// ==================================================================
+// TOOLTIPS
+// ==================================================================
+const tip = document.getElementById('tooltip');
+let tipTimer = null;
+function attachTooltips() {
+  document.querySelectorAll('.info').forEach(el => {
+    if (el.dataset.tipBound) return;
+    el.dataset.tipBound = '1';
+    el.addEventListener('mouseenter', () => {
+      clearTimeout(tipTimer);
+      tip.innerHTML = el.dataset.tooltip || '';
+      tip.classList.add('visible');
+      positionTooltip(el);
+    });
+    el.addEventListener('mouseleave', () => {
+      tipTimer = setTimeout(() => tip.classList.remove('visible'), 100);
+    });
+  });
+}
+function positionTooltip(el) {
+  const r = el.getBoundingClientRect();
+  tip.style.top = `${r.bottom + 8}px`;
+  tip.style.left = `${r.left}px`;
+  requestAnimationFrame(() => {
+    const tr = tip.getBoundingClientRect();
+    if (tr.right > window.innerWidth - 16) tip.style.left = `${window.innerWidth - tr.width - 16}px`;
+    if (tr.bottom > window.innerHeight - 16) tip.style.top = `${r.top - tr.height - 8}px`;
+  });
+}
+attachTooltips();
+
+// ==================================================================
+// VIEW TABS — substantively change KPIs
+// ==================================================================
+document.querySelectorAll('.view-tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.view-tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    renderKPIs(t.dataset.view);
+  });
+});
+
+// Dropdowns — exposed on `window` so inline onclick handlers in HTML can reach them
+// (this whole script is wrapped in an async IIFE for the top-level await on fetch)
+window.toggleDropdown = function(id) {
+  document.querySelectorAll('.dropdown.open').forEach(d => { if (d.id !== id) d.classList.remove('open'); });
+  document.getElementById(id).classList.toggle('open');
+};
+document.addEventListener('click', e => {
+  if (!e.target.closest('.dropdown')) document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+});
+window.setSaved = function(name) {
+  document.getElementById('saved-view-name').textContent = name;
+  document.querySelectorAll('#dd-saved .menu-item').forEach(m => m.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('dd-saved').classList.remove('open');
+};
+window.setRange = function(name) {
+  document.getElementById('range-name').textContent = name;
+  document.querySelectorAll('#dd-range .menu-item').forEach(m => m.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('dd-range').classList.remove('open');
+};
+
+})(); // end async IIFE
+</script>
+</body>
+</html>
