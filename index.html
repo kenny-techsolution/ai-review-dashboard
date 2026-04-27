@@ -953,39 +953,48 @@ function feedItem(e, isNew = false) {
 }
 document.getElementById('feed-list').innerHTML = [...EVENTS].reverse().map(e => feedItem(e)).join('');
 
-// Live feed
-const liveSpecs = [
-  { author: 'alice', files: ['web/src/components/Sidebar.tsx'], tier: 'T1', adds: 12, dels: 3 },
-  { author: 'frank', files: ['api/payments/dispute.go'], tier: 'T3', adds: 47, dels: 12 },
-  { author: 'grace', files: ['docs/api-reference.md'], tier: 'T0', adds: 18, dels: 5 },
-  { author: 'bob',   files: ['api/menu/options.go'], tier: 'T2', adds: 24, dels: 8 },
-  { author: 'eve',   files: ['web/src/hooks/useAuth.ts'], tier: 'T2', adds: 31, dels: 14 },
-  { author: 'henry', files: ['api/auth/session.go'], tier: 'T3', adds: 52, dels: 18 },
-];
-let liveCounter = 1100;
-let nextLive;
-function pushLive() {
-  const spec = liveSpecs[Math.floor(Math.random() * liveSpecs.length)];
-  const decByTier = { T0: 'APPROVE', T1: 'APPROVE', T2: 'COMMENT', T3: 'REQUEST_CHANGES', T4: 'REQUEST_CHANGES' };
-  const event = {
-    pr_id: ++liveCounter,
-    author: spec.author,
-    files_changed: spec.files,
-    ai_tier: spec.tier,
-    ai_decision: decByTier[spec.tier],
-    ai_reviewed_at: new Date().toISOString(),
-    human_overturned: false,
-    adds: spec.adds, dels: spec.dels,
-  };
+// Live feed — real events via Server-Sent Events.
+// The Worker's /stream endpoint holds a Durable-Object-backed SSE connection;
+// every POST /events broadcasts to all connected dashboards in <1s.
+function mergedFeedItem(e, isNew = false) {
+  const who = e.merged_by || 'someone';
+  return `<div class="feed-item ${isNew ? 'new' : ''}" tabindex="0">
+    <div class="feed-avatar">${who[0].toUpperCase()}</div>
+    <div class="feed-msg">
+      <span class="who">PR #${e.pr_id}</span> · merged by <span class="who">${who}</span>
+    </div>
+    <div class="feed-stats"><span class="add">✓ merged</span></div>
+    <div class="feed-tier t0">DONE</div>
+    <div class="feed-time">just now<span class="feed-action" style="margin-left:6px;">↗</span></div>
+  </div>`;
+}
+
+function prependFeed(html) {
   const list = document.getElementById('feed-list');
-  list.insertAdjacentHTML('afterbegin', feedItem(event, true));
+  list.insertAdjacentHTML('afterbegin', html);
   if (list.children.length > 50) list.removeChild(list.lastChild);
   document.getElementById('updated-ago').textContent = 'just now';
+  updatedAt = Date.now();
   attachTooltips();
-  scheduleLive();
 }
-function scheduleLive() { clearTimeout(nextLive); nextLive = setTimeout(pushLive, 7000 + Math.random() * 5000); }
-scheduleLive();
+
+const STREAM_URL = WORKER_EVENTS_URL.replace(/\/events\.jsonl$/, '/stream');
+let liveSource = null;
+try {
+  liveSource = new EventSource(STREAM_URL);
+  liveSource.addEventListener('hello', () => console.log('SSE connected'));
+  liveSource.addEventListener('review', (msg) => {
+    try { prependFeed(feedItem(JSON.parse(msg.data), true)); }
+    catch (err) { console.warn('bad review event', err, msg.data); }
+  });
+  liveSource.addEventListener('merged', (msg) => {
+    try { prependFeed(mergedFeedItem(JSON.parse(msg.data), true)); }
+    catch (err) { console.warn('bad merged event', err, msg.data); }
+  });
+  liveSource.onerror = (err) => console.warn('SSE error (auto-reconnects)', err);
+} catch (err) {
+  console.warn('EventSource unsupported · live feed disabled', err);
+}
 
 let updatedAt = Date.now();
 setInterval(() => {

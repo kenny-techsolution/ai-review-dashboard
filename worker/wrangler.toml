@@ -7,6 +7,16 @@ compatibility_date = "2026-04-01"
 binding = "EVENTS"
 bucket_name = "ai-review-events"
 
+# Durable Object — holds open SSE connections, broadcasts on every POST /events.
+# SQLite-backed so it runs on the free Workers plan.
+[[durable_objects.bindings]]
+name = "BROADCASTER"
+class_name = "EventBroadcaster"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["EventBroadcaster"]
+
 # Write secret — set with: wrangler secret put WRITE_TOKEN
 # (paste a long random string when prompted, e.g.:  openssl rand -hex 32)
 # DO NOT put the token here — secrets live outside the toml.
